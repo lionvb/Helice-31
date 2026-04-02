@@ -24,7 +24,7 @@ const int PWM_ARME    = 1000;
 const int GAZ_MIN_VOL = 1100;
 
 void initMoteurs() {
-    
+
   pinMode(PIN_ESC_HAUT, OUTPUT);
   pinMode(PIN_ESC_BAS, OUTPUT);
 
@@ -32,4 +32,14 @@ void initMoteurs() {
   delay(3000);
 
   setMoteurPrincipal(commande);
+}
+
+void setMoteurPrincipal(int commande) {
+  int pwm = map(commande, 0, 100, PWM_MIN, PWM_MAX);
+  pwm = constrain(pwm, PWM_MIN, PWM_MAX);
+  analogWrite(PIN_ESC_HAUT, pwm);
+}
+
+void setup(){
+    
 }

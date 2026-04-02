@@ -16,7 +16,7 @@ Sortie
 
 static int modeActuel = MODE_ANALOGIQUE;
 
-// ============================================================
+// -----------------------------------------------------------
 void initLeds() {
   pinMode(PIN_LED_SATURATION, OUTPUT);
   pinMode(PIN_LED_MODE,       OUTPUT);
@@ -25,7 +25,7 @@ void initLeds() {
   digitalWrite(PIN_LED_MODE,       LOW);
 }
 
-// ============================================================
+// -----------------------------------------------------------
 void majLeds(bool saturation) {
   // LED saturation : allumée si un ESC a atteint ses limites
   digitalWrite(PIN_LED_SATURATION, saturation ? HIGH : LOW);
@@ -34,7 +34,7 @@ void majLeds(bool saturation) {
   setModeLed(modeActuel);
 }
 
-// ============================================================
+// -----------------------------------------------------------
 void setModeLed(int mode) {
   modeActuel = mode;
   // MODE_ANALOGIQUE → LED éteinte (pas de signal RF → état par défaut)

@@ -1,134 +1,142 @@
-
-
-
-#include "Gyro.h"
+#include "gyro.h"
 #include <Wire.h>
-
-#define MPU 0x68
-
-// VARIABLES INTERNES
-
-// Offsets du gyroscope (erreurs)
-static float offset_gx = 0, offset_gy = 0, offset_gz = 0;
-
-// Angles calculés
-static float anglePitch = 0;
-static float angleYaw = 0;
-
-// Gestion du temps
-static unsigned long lastTime;
-
-// Données brutes
-static int16_t ax, ay, az;
-static int16_t gx, gy, gz;
-
-
-// FONCTION INTERNE (non accessible)
-static void lireBrut() {
-  Wire.beginTransmission(MPU);
+#include <Arduino.h>
+ 
+#define MPU_ADDR  0x68
+ 
+// 0.98 → 98% gyroscope, 2% accéléromètre (filtre complémentaire classique)
+#define ALPHA_GYRO  0.98f
+ 
+// 0.95 → 95% angle gyro filtré, 5% potentiomètre mécanique
+// Corrige la dérive lente du gyroscope pendant les longues démos
+#define ALPHA_POT   0.95f
+ 
+// Débattement angulaire couvert par les potentiomètres mécaniques
+// À ajuster selon la mécanique réelle de la maquette
+#define POT_ANGLE_MIN  -45.0f
+#define POT_ANGLE_MAX   45.0f
+ 
+static float angleTanguage  = 0.0f;
+static float angleLacet     = 0.0f;
+static float offsetGX       = 0.0f;
+static float offsetGZ       = 0.0f;
+static bool  gyroDisponible = false;
+static unsigned long dernierTemps = 0;
+ 
+static void lireRegistres(int16_t* aX, int16_t* aY, int16_t* aZ, int16_t* gX, int16_t* gY, int16_t* gZ) {
+  Wire.beginTransmission(MPU_ADDR);
   Wire.write(0x3B);
   Wire.endTransmission(false);
-  Wire.requestFrom(MPU, 14, true);
-
-  ax = Wire.read() << 8 | Wire.read();
-  ay = Wire.read() << 8 | Wire.read();
-  az = Wire.read() << 8 | Wire.read();
-
-  Wire.read(); Wire.read(); // température ignorée
-
-  gx = Wire.read() << 8 | Wire.read();
-  gy = Wire.read() << 8 | Wire.read();
-  gz = Wire.read() << 8 | Wire.read();
+  Wire.requestFrom(MPU_ADDR, 14, true);
+  *aX = (Wire.read() << 8) | Wire.read();
+  *aY = (Wire.read() << 8) | Wire.read();
+  *aZ = (Wire.read() << 8) | Wire.read();
+  Wire.read(); Wire.read();  // température ignorée
+  *gX = (Wire.read() << 8) | Wire.read();
+  *gY = (Wire.read() << 8) | Wire.read();
+  *gZ = (Wire.read() << 8) | Wire.read();
 }
-
-
-// INITIALISATION
+ 
+// ADC 0-1023 → angle en degrés selon la plage mécanique
+static float potVersAngle(int pin) {
+  int raw = analogRead(pin);
+  long mapped = map(raw, 0, 1023, (long)(POT_ANGLE_MIN * 100), (long)(POT_ANGLE_MAX * 100));
+  return mapped / 100.0f;
+}
+ 
 void initGyro() {
+  pinMode(PIN_POT_ANGLE_TANGAGE, INPUT);
+  pinMode(PIN_POT_ANGLE_LACET,   INPUT);
   Wire.begin();
 
-  // Réveil du MPU6050
-  Wire.beginTransmission(MPU);
+  // Tenter de réveiller le MPU-6050
+  Wire.beginTransmission(MPU_ADDR);
   Wire.write(0x6B);
   Wire.write(0x00);
-  Wire.endTransmission(true);
+  byte err = Wire.endTransmission(true);
 
-  // Gyroscope ±250°/s
-  Wire.beginTransmission(MPU);
-  Wire.write(0x1B);
-  Wire.write(0x00);
-  Wire.endTransmission(true);
-
-  // Accéléromètre ±2g
-  Wire.beginTransmission(MPU);
-  Wire.write(0x1C);
-  Wire.write(0x00);
-  Wire.endTransmission(true);
-
-  // Filtre interne (réduction du bruit)
-  Wire.beginTransmission(MPU);
-  Wire.write(0x1A);
-  Wire.write(0x03);
-  Wire.endTransmission(true);
-
-  lastTime = millis();
-}
-
-
-// CALIBRATION
-void calibrerGyro() {
-  int n = 500;
-
-  for (int i = 0; i < n; i++) {
-    lireBrut();
-
-    offset_gx += gx;
-    offset_gy += gy;
-    offset_gz += gz;
-
-    delay(5);
+  if (err == 0) {
+    // MPU détecté : gyro ±250°/s, accel ±2g
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(0x1B); Wire.write(0x00);
+    Wire.endTransmission(true);
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(0x1C); Wire.write(0x00);
+    Wire.endTransmission(true);
+    gyroDisponible = true;
+  } else {
+    // Mode dégradé : potentiomètres mécaniques seuls
+    gyroDisponible = false;
   }
 
-  // Moyenne des offsets
-  offset_gx /= n;
-  offset_gy /= n;
-  offset_gz /= n;
+  // Initialiser les angles depuis les pots (point de départ cohérent)
+  angleTanguage = potVersAngle(PIN_POT_ANGLE_TANGAGE);
+  angleLacet    = potVersAngle(PIN_POT_ANGLE_LACET);
+  dernierTemps  = micros();
 }
+ 
+void calibrerGyro() {
+  if (!gyroDisponible) return;
 
-
-// FILTRE COMPLÉMENTAIRE
+  const int N = 200;
+  long sumGX = 0, sumGZ = 0;
+  for (int i = 0; i < N; i++) {
+    int16_t aX, aY, aZ, gX, gY, gZ;
+    lireRegistres(&aX, &aY, &aZ, &gX, &gY, &gZ);
+    sumGX += gX;
+    sumGZ += gZ;
+    delay(5);
+  }
+  offsetGX = sumGX / (float)N;
+  offsetGZ = sumGZ / (float)N;
+}
+ 
 void mettreAJourFiltreComp() {
-  lireBrut();
+  // Lecture retour mécanique (toujours disponible, quelle que soit la config)
+  float potTanguage = potVersAngle(PIN_POT_ANGLE_TANGAGE);
+  float potLacet    = potVersAngle(PIN_POT_ANGLE_LACET);
 
-  // Conversion accéléromètre
-  float accX = ax / 16384.0;
-  float accY = ay / 16384.0;
-  float accZ = az / 16384.0;
+  if (gyroDisponible) {
+    // ── Mode nominal : gyro + accél + correction dérive par pot ──
+    int16_t aX, aY, aZ, gX, gY, gZ;
+    lireRegistres(&aX, &aY, &aZ, &gX, &gY, &gZ);
 
-  // Conversion gyroscope + correction offset
-  float gyroX = (gx - offset_gx) / 131.0;
-  float gyroY = (gy - offset_gy) / 131.0;
-  float gyroZ = (gz - offset_gz) / 131.0;
+    unsigned long maintenant = micros();
+    float dt = (maintenant - dernierTemps) / 1000000.0f;
+    dernierTemps = maintenant;
 
-  // Calcul du temps écoulé
-  float dt = (millis() - lastTime) / 1000.0;
-  lastTime = millis();
+    // Vitesses angulaires en °/s (sensibilité 131 LSB/°/s pour ±250°/s)
+    float gyroTanguage = (gX - offsetGX) / 131.0f;
+    float gyroLacet    = (gZ - offsetGZ) / 131.0f;
 
-  // Angle avec accéléromètre (stable)
-  float angleAccPitch = atan2(accY, accZ) * 180 / PI;
+    // Angle tanguage depuis accéléromètre (référence absolue)
+    float accelTanguage = atan2((float)aY, (float)aZ) * 180.0f / PI;
 
-  // Fusion gyro + accel (filtre complémentaire)
-  anglePitch = 0.98 * (anglePitch + gyroX * dt) + 0.02 * angleAccPitch;
+    // Filtre complémentaire gyro + accel
+    float angleBrutTanguage = ALPHA_GYRO * (angleTanguage + gyroTanguage * dt) + (1.0f - ALPHA_GYRO) * accelTanguage;
 
-  // Lacet (gyro seul → dérive possible)
-  angleYaw += gyroZ * dt;
+    // Fusion finale avec potentiomètre mécanique pour corriger la dérive
+    angleTanguage = ALPHA_POT * angleBrutTanguage + (1.0f - ALPHA_POT) * potTanguage;
+
+    // Lacet : intégration gyro uniquement (pas de référence accel sur Z)
+    // + correction légère par potentiomètre mécanique
+    float angleBrutLacet = angleLacet + gyroLacet * dt;
+    angleLacet = ALPHA_POT * angleBrutLacet + (1.0f - ALPHA_POT) * potLacet;
+
+} else {
+    // ── Mode dégradé : potentiomètres mécaniques seuls ──
+    // Filtre passe-bas simple pour lisser le bruit ADC (10 bits)
+    angleTanguage = 0.8f * angleTanguage + 0.2f * potTanguage;
+    angleLacet    = 0.8f * angleLacet    + 0.2f * potLacet;
+  }
 }
 
-
-// ACCES AUX DONNEES
 float lireAngleTangage() {
-  return anglePitch;
+return angleTanguage;
 }
 
 float lireAngleLacet() {
-  return angleYaw;
+return angleLacet;
 }
+
+bool  gyroEstDisponible() { return gyroDisponible; }

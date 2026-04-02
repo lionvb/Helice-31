@@ -11,33 +11,42 @@ Sortie
 */
 
 #include "leds.h"
-#include "config.h"
 #include <Arduino.h>
-
-static int modeActuel = MODE_ANALOGIQUE;
-
-// -----------------------------------------------------------
+static int modeActuel = MODE_NUMERIQUE;
+ 
 void initLeds() {
-  pinMode(PIN_LED_SATURATION, OUTPUT);
-  pinMode(PIN_LED_MODE,       OUTPUT);
 
-  digitalWrite(PIN_LED_SATURATION, LOW);
-  digitalWrite(PIN_LED_MODE,       LOW);
+    pinMode(PIN_LED_SATURATION, OUTPUT);
+    pinMode(PIN_LED_MODE,       OUTPUT);
+    pinMode(PIN_LED_RF,         OUTPUT);
+    pinMode(PIN_LED_KP,         OUTPUT);
+    pinMode(PIN_LED_KI,         OUTPUT);
+    pinMode(PIN_LED_KD,         OUTPUT);
+    digitalWrite(PIN_LED_SATURATION, LOW)
+    digitalWrite(PIN_LED_MODE,       LOW);
+    digitalWrite(PIN_LED_RF,         LOW);
+    digitalWrite(PIN_LED_KP,         LOW);
+    digitalWrite(PIN_LED_KI,         LOW);
+    digitalWrite(PIN_LED_KD,         LOW);
+    digitalWrite(PIN_LED_KP, HIGH);
 }
 
-// -----------------------------------------------------------
 void majLeds(bool saturation) {
-  // LED saturation : allumée si un ESC a atteint ses limites
-  digitalWrite(PIN_LED_SATURATION, saturation ? HIGH : LOW);
-
-  // LED mode : reflète le mode courant
-  setModeLed(modeActuel);
+    // LED rouge : commande moteur saturée
+    digitalWrite(PIN_LED_SATURATION, saturation ? HIGH : LOW);
+    // LED mode : allumée en mode analogique
+    digitalWrite(PIN_LED_MODE, (modeActuel == MODE_ANALOGIQUE) ? HIGH : LOW);
 }
-
-// -----------------------------------------------------------
+ 
+void majLedsGain(GainSelectionne gain) {
+    // Une seule LED allumée à la fois
+    digitalWrite(PIN_LED_KP, (gain == GAIN_KP) ? HIGH : LOW);
+    digitalWrite(PIN_LED_KI, (gain == GAIN_KI) ? HIGH : LOW);
+    digitalWrite(PIN_LED_KD, (gain == GAIN_KD) ? HIGH : LOW);
+}
+ 
 void setModeLed(int mode) {
-  modeActuel = mode;
-  // MODE_ANALOGIQUE → LED éteinte (pas de signal RF → état par défaut)
-  // MODE_RF         → LED allumée (signal RF actif et valide)
-  digitalWrite(PIN_LED_MODE, (mode == MODE_RF) ? HIGH : LOW);
+    modeActuel = mode;
+    digitalWrite(PIN_LED_MODE, (mode == MODE_ANALOGIQUE) ? HIGH : LOW);
 }
+ 

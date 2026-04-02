@@ -15,3 +15,5 @@ estEnSaturation()
 Retourne true si le dernier appel a atteint les limites PWM → pour les LEDs
 Utilitaire
 */
+const int PIN_ESC_HAUT = 5;
+const int PIN_ESC_BAS  = 6;

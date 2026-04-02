@@ -17,12 +17,12 @@ static int modeActuel = MODE_NUMERIQUE;
 void initLeds() {
 
     pinMode(PIN_LED_SATURATION, OUTPUT);
-    pinMode(PIN_LED_MODE,       OUTPUT);
-    pinMode(PIN_LED_RF,         OUTPUT);
-    pinMode(PIN_LED_KP,         OUTPUT);
+    pinMode(PIN_LED_MODE, OUTPUT);
+    pinMode(PIN_LED_RF, OUTPUT);
+    pinMode(PIN_LED_KP, OUTPUT);
     pinMode(PIN_LED_KI, OUTPUT);
     pinMode(PIN_LED_KD, OUTPUT);
-    digitalWrite(PIN_LED_SATURATION, LOW)
+    digitalWrite(PIN_LED_SATURATION,LOW)
     digitalWrite(PIN_LED_MODE, LOW);
     digitalWrite(PIN_LED_RF, LOW);
     digitalWrite(PIN_LED_KP, LOW);

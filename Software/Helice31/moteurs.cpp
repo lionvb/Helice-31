@@ -24,8 +24,9 @@ static Servo escPrincipal;
 static Servo escQueue;
 static bool  saturation = false;
  
-// Convertit une commande normalisée [COMMANDE_MIN, COMMANDE_MAX]
+// Convertit une commande (COMMANDE_MIN, COMMANDE_MAX)
 // en largeur d'impulsion PWM en µs [PWM_MIN, PWM_MAX]
+
 static int commandeVersPWM(float commande) {
     float ratio = (commande - COMMANDE_MIN) / (COMMANDE_MAX - COMMANDE_MIN);
     int pwm = (int)(PWM_MIN + ratio * (PWM_MAX - PWM_MIN));

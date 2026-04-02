@@ -132,11 +132,13 @@ void mettreAJourFiltreComp() {
 }
 
 float lireAngleTangage() {
-return angleTanguage;
+  return angleTanguage;
 }
 
 float lireAngleLacet() {
-return angleLacet;
+  return angleLacet;
 }
 
-bool  gyroEstDisponible() { return gyroDisponible; }
+bool  gyroEstDisponible() { 
+  return gyroDisponible; 
+}

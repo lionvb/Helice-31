@@ -17,3 +17,8 @@ Utilitaire
 */
 const int PIN_ESC_HAUT = 5;
 const int PIN_ESC_BAS  = 6;
+
+const int PWM_MIN     = 1000;
+const int PWM_MAX     = 2000; 
+const int PWM_ARME    = 1000; 
+const int GAZ_MIN_VOL = 1100;

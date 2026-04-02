@@ -37,7 +37,7 @@ void initMoteurs() {
     escPrincipal.attach(PIN_MOTEUR_PRINCIPAL, PWM_MIN, PWM_MAX);
     escQueue.attach(PIN_ROTOR_QUEUE,          PWM_MIN, PWM_MAX);
  
-    // ⚠️ Séquence obligatoire : signal neutre minimum 3 s
+    // Séquence obligatoire : signal neutre minimum 3 s
     // Les ESC brushless ont une sécurité au démarrage :
     // ils refusent de démarrer si le signal n'est pas à PWM_MIN
     escPrincipal.writeMicroseconds(PWM_MIN);

@@ -22,3 +22,14 @@ const int PWM_MIN     = 1000;
 const int PWM_MAX     = 2000; 
 const int PWM_ARME    = 1000; 
 const int GAZ_MIN_VOL = 1100;
+
+void initMoteurs() {
+    
+  pinMode(PIN_ESC_HAUT, OUTPUT);
+  pinMode(PIN_ESC_BAS, OUTPUT);
+
+  setMoteurPrincipal(1500);
+  delay(3000);
+
+  setMoteurPrincipal(commande);
+}

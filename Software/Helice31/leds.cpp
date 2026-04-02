@@ -34,7 +34,7 @@ void initLeds() {
 void majLeds(bool saturation) {
     // LED rouge : commande moteur saturée
     digitalWrite(PIN_LED_SATURATION, saturation ? HIGH : LOW);
-    // LED mode : allumée en mode analogique
+    // LED allumée en mode analogique
     digitalWrite(PIN_LED_MODE, (modeActuel == MODE_ANALOGIQUE) ? HIGH : LOW);
 }
  

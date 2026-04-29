@@ -178,7 +178,7 @@ void mettreAJourFiltreComp() {
 }
 
 float lireAngleTangage() {
-  return angleTanguage;
+  return -angleTanguage;
 }
 
 float lireAngleLacet() {

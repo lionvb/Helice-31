@@ -12,10 +12,6 @@
 #define COMMANDE_MIN     0.0f    // commande minimale (correspond à PWM_MIN)
 #define COMMANDE_MAX     100.0f  // commande maximale (correspond à PWM_MAX)
 
-//  WATCHDOG securite
-// Si aucune commande envoyee depuis WATCHDOG_MS → arret 
-
-#define WATCHDOG_MS           300    // 3xTE = 300ms sans commande → coupure
 
 //  PINS MOTEURS
 
@@ -37,8 +33,7 @@
 #define PIN_LED_KP            3   // vert   — on règle Kp
 #define PIN_LED_KI            4   // vert   — on règle Ki
 #define PIN_LED_KD            5    // vert   — on règle Kd
-#define PIN_LED_MODE          8    // jaune  — mode analogique actif
-#define PIN_LED_RF            7
+
 //  SIGNAL ESC (PWM en µs)
 
 #define PWM_MIN               1000   // moteur à l'arrêt

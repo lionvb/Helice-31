@@ -13,7 +13,5 @@ void majLeds(bool saturation);
 // Met à jour les 3 LEDs Kp/Ki/Kd selon le gain actuellement sélectionné
 void majLedsGain(GainSelectionne gain);
 
-// Force l'affichage du mode (MODE_NUMERIQUE ou MODE_ANALOGIQUE)
-void setModeLed(int mode);
 
 #endif

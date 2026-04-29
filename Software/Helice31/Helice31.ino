@@ -75,14 +75,6 @@ void loop() {
     majSelectionGain();
     majLedsGain(gainActuel());
 
-    // ── Watchdog sécurité ────────────────────────────────────
-    // Si le flag ne se lève plus (timer mort, bug, crash),
-    // on coupe les moteurs après WATCHDOG_MS millisecondes
-    /*if ((millis() - derniere_commande_ms) > WATCHDOG_MS) {
-        //arretUrgence();
-        digitalWrite(PIN_LED_SATURATION, HIGH);  // LED rouge clignotante en urgence
-        return;
-    }*/
 
     //Attendre le tick timer
     if (!flag_echantillon) return;

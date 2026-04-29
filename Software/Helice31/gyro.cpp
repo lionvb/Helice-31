@@ -1,118 +1,84 @@
 
-
-
 #include "gyro.h"
 #include <Wire.h>
 
-#define MPU_ADDR  0x68
+#define MPU_ADDR 0x68
+#define ALPHA 0.98f
 
-#define ALPHA_GYRO  0.98f
-#define ALPHA_POT   0.95f
-
-#define POT_ANGLE_MIN  -45.0f
-#define POT_ANGLE_MAX   45.0f
-
-static float angleTanguage  = 0.0f;
-static float angleLacet     = 0.0f;
+static float anglePitch = 0.0f;
+static float angleYaw   = 0.0f;
 
 static float offsetGX = 0.0f;
 static float offsetGZ = 0.0f;
-
 static float offsetAnglePitch = 0.0f;
 
-static bool  gyroDisponible = false;
-static unsigned long dernierTemps = 0;
+static unsigned long lastTime = 0;
 
 
-// ===== LECTURE MPU =====
-static void lireRegistres(int16_t* aX, int16_t* aY, int16_t* aZ,
-                          int16_t* gX, int16_t* gY, int16_t* gZ) {
+// ===== LECTURE =====
+static void lireRegistres(int16_t* ax, int16_t* ay, int16_t* az,
+                          int16_t* gx, int16_t* gy, int16_t* gz) {
 
   Wire.beginTransmission(MPU_ADDR);
   Wire.write(0x3B);
   Wire.endTransmission(false);
   Wire.requestFrom(MPU_ADDR, 14, true);
 
-  *aX = (Wire.read() << 8) | Wire.read();
-  *aY = (Wire.read() << 8) | Wire.read();
-  *aZ = (Wire.read() << 8) | Wire.read();
+  *ax = (Wire.read() << 8) | Wire.read();
+  *ay = (Wire.read() << 8) | Wire.read();
+  *az = (Wire.read() << 8) | Wire.read();
 
   Wire.read(); Wire.read();
 
-  *gX = (Wire.read() << 8) | Wire.read();
-  *gY = (Wire.read() << 8) | Wire.read();
-  *gZ = (Wire.read() << 8) | Wire.read();
-}
-
-
-// ===== POT =====
-static float potVersAngle(int pin) {
-  int raw = analogRead(pin);
-  long mapped = map(raw, 0, 1023,
-                    (long)(POT_ANGLE_MIN * 100),
-                    (long)(POT_ANGLE_MAX * 100));
-  return mapped / 100.0f;
+  *gx = (Wire.read() << 8) | Wire.read();
+  *gy = (Wire.read() << 8) | Wire.read();
+  *gz = (Wire.read() << 8) | Wire.read();
 }
 
 
 // ===== INIT =====
 void initGyro() {
 
-  pinMode(PIN_POT_ANGLE_TANGAGE, INPUT);
-  pinMode(PIN_POT_ANGLE_LACET,   INPUT);
-
   Wire.begin();
 
   Wire.beginTransmission(MPU_ADDR);
   Wire.write(0x6B);
   Wire.write(0x00);
-  byte err = Wire.endTransmission(true);
+  Wire.endTransmission(true);
 
-  if (err == 0) {
-    gyroDisponible = true;
+  lastTime = micros();
 
-    Wire.beginTransmission(MPU_ADDR);
-    Wire.write(0x1B); Wire.write(0x00);
-    Wire.endTransmission(true);
+  // ===== ZERO PROPRE (moyenne) =====
+  const int N = 100;
+  float somme = 0;
 
-    Wire.beginTransmission(MPU_ADDR);
-    Wire.write(0x1C); Wire.write(0x00);
-    Wire.endTransmission(true);
+  for (int i = 0; i < N; i++) {
+    int16_t ax, ay, az, gx, gy, gz;
+    lireRegistres(&ax, &ay, &az, &gx, &gy, &gz);
 
-  } else {
-    gyroDisponible = false;
+    float angle = atan2((float)ay, (float)az) * 180.0f / PI;
+    somme += angle;
+
+    delay(5);
   }
 
-  // ZERO AU DEMARRAGE
-  int16_t aX, aY, aZ, gX, gY, gZ;
-  lireRegistres(&aX, &aY, &aZ, &gX, &gY, &gZ);
-
-  float accelTanguage = atan2((float)aY, (float)aZ) * 180.0f / PI;
-
-  offsetAnglePitch = accelTanguage;
-
-  angleTanguage = 0.0f;
-  angleLacet    = 0.0f;
-
-  dernierTemps = micros();
+  offsetAnglePitch = somme / N;
+  anglePitch = 0.0f;
 }
 
 
 // ===== CALIBRATION =====
 void calibrerGyro() {
 
-  if (!gyroDisponible) return;
-
   const int N = 200;
-
   long sumGX = 0, sumGZ = 0;
 
   for (int i = 0; i < N; i++) {
-    int16_t aX, aY, aZ, gX, gY, gZ;
-    lireRegistres(&aX, &aY, &aZ, &gX, &gY, &gZ);
+    int16_t ax, ay, az, gx, gy, gz;
+    lireRegistres(&ax, &ay, &az, &gx, &gy, &gz);
 
-    sumGX += gX;
-    sumGZ += gZ;
+    sumGX += gx;
+    sumGZ += gz;
 
     delay(5);
   }
@@ -125,54 +91,36 @@ void calibrerGyro() {
 // ===== FILTRE =====
 void mettreAJourFiltreComp() {
 
-  float potTanguage = potVersAngle(PIN_POT_ANGLE_TANGAGE);
-  float potLacet    = potVersAngle(PIN_POT_ANGLE_LACET);
+  int16_t ax, ay, az, gx, gy, gz;
+  lireRegistres(&ax, &ay, &az, &gx, &gy, &gz);
 
-  if (gyroDisponible) {
+  unsigned long now = micros();
+  float dt = (now - lastTime) / 1000000.0f;
+  lastTime = now;
 
-    int16_t aX, aY, aZ, gX, gY, gZ;
-    lireRegistres(&aX, &aY, &aZ, &gX, &gY, &gZ);
+  float gyroX = (gx - offsetGX) / 131.0f;
+  float gyroZ = (gz - offsetGZ) / 131.0f;
 
-    unsigned long maintenant = micros();
-    float dt = (maintenant - dernierTemps) / 1000000.0f;
-    dernierTemps = maintenant;
+  float accelPitch = atan2((float)ay, (float)az) * 180.0f / PI;
+  accelPitch -= offsetAnglePitch;
 
-    float gyroTanguage = (gX - offsetGX) / 131.0f;
-    float gyroLacet    = (gZ - offsetGZ) / 131.0f;
+  anglePitch = ALPHA * (anglePitch + gyroX * dt)
+             + (1.0f - ALPHA) * accelPitch;
 
-    float accelTanguage = atan2((float)aY, (float)aZ) * 180.0f / PI;
-    accelTanguage -= offsetAnglePitch;
-
-    float angleBrutTanguage =
-      ALPHA_GYRO * (angleTanguage + gyroTanguage * dt)
-    + (1.0f - ALPHA_GYRO) * accelTanguage;
-
-    angleTanguage =
-      ALPHA_POT * angleBrutTanguage
-    + (1.0f - ALPHA_POT) * potTanguage;
-
-    float angleBrutLacet = angleLacet + gyroLacet * dt;
-
-    angleLacet =
-      ALPHA_POT * angleBrutLacet
-    + (1.0f - ALPHA_POT) * potLacet;
-
-  } else {
-    angleTanguage = 0.8f * angleTanguage + 0.2f * potTanguage;
-    angleLacet    = 0.8f * angleLacet    + 0.2f * potLacet;
-  }
+  angleYaw += gyroZ * dt;
 }
 
 
 // ===== GETTERS =====
 float lireAngleTangage() {
-  return angleTanguage;
+  return anglePitch;
 }
 
 float lireAngleLacet() {
-  return angleLacet;
+  return angleYaw;
 }
 
 bool gyroEstDisponible() {
-  return gyroDisponible;
+  return true;
 }
+

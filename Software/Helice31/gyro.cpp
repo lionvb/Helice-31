@@ -3,7 +3,6 @@
 
 #include "gyro.h"
 #include <Wire.h>
-#include <Arduino.h>
 
 #define MPU_ADDR  0x68
 
@@ -13,23 +12,19 @@
 #define POT_ANGLE_MIN  -45.0f
 #define POT_ANGLE_MAX   45.0f
 
-// Variables
-
 static float angleTanguage  = 0.0f;
 static float angleLacet     = 0.0f;
 
 static float offsetGX = 0.0f;
 static float offsetGZ = 0.0f;
 
-// Offset d'angle pour définir le zéro
 static float offsetAnglePitch = 0.0f;
 
 static bool  gyroDisponible = false;
 static unsigned long dernierTemps = 0;
 
 
-// Lecture MPU
-
+// ===== LECTURE MPU =====
 static void lireRegistres(int16_t* aX, int16_t* aY, int16_t* aZ,
                           int16_t* gX, int16_t* gY, int16_t* gZ) {
 
@@ -42,7 +37,7 @@ static void lireRegistres(int16_t* aX, int16_t* aY, int16_t* aZ,
   *aY = (Wire.read() << 8) | Wire.read();
   *aZ = (Wire.read() << 8) | Wire.read();
 
-  Wire.read(); Wire.read(); // température ignorée
+  Wire.read(); Wire.read();
 
   *gX = (Wire.read() << 8) | Wire.read();
   *gY = (Wire.read() << 8) | Wire.read();
@@ -50,8 +45,7 @@ static void lireRegistres(int16_t* aX, int16_t* aY, int16_t* aZ,
 }
 
 
-// Potentiomètre
-
+// ===== POT =====
 static float potVersAngle(int pin) {
   int raw = analogRead(pin);
   long mapped = map(raw, 0, 1023,
@@ -61,8 +55,7 @@ static float potVersAngle(int pin) {
 }
 
 
-// Init
-
+// ===== INIT =====
 void initGyro() {
 
   pinMode(PIN_POT_ANGLE_TANGAGE, INPUT);
@@ -70,7 +63,6 @@ void initGyro() {
 
   Wire.begin();
 
-  // Réveil MPU6050
   Wire.beginTransmission(MPU_ADDR);
   Wire.write(0x6B);
   Wire.write(0x00);
@@ -79,12 +71,10 @@ void initGyro() {
   if (err == 0) {
     gyroDisponible = true;
 
-    // Config gyro
     Wire.beginTransmission(MPU_ADDR);
     Wire.write(0x1B); Wire.write(0x00);
     Wire.endTransmission(true);
 
-    // Config accel
     Wire.beginTransmission(MPU_ADDR);
     Wire.write(0x1C); Wire.write(0x00);
     Wire.endTransmission(true);
@@ -93,16 +83,14 @@ void initGyro() {
     gyroDisponible = false;
   }
 
-  // Initialisation du zéro
+  // ZERO AU DEMARRAGE
   int16_t aX, aY, aZ, gX, gY, gZ;
   lireRegistres(&aX, &aY, &aZ, &gX, &gY, &gZ);
 
   float accelTanguage = atan2((float)aY, (float)aZ) * 180.0f / PI;
 
-  // Stocker le décalage
   offsetAnglePitch = accelTanguage;
 
-  // Démarrer à 0°
   angleTanguage = 0.0f;
   angleLacet    = 0.0f;
 
@@ -110,16 +98,14 @@ void initGyro() {
 }
 
 
-// Calibration
-
+// ===== CALIBRATION =====
 void calibrerGyro() {
 
   if (!gyroDisponible) return;
 
   const int N = 200;
 
-  long sumGX = 0;
-  long sumGZ = 0;
+  long sumGX = 0, sumGZ = 0;
 
   for (int i = 0; i < N; i++) {
     int16_t aX, aY, aZ, gX, gY, gZ;
@@ -136,8 +122,7 @@ void calibrerGyro() {
 }
 
 
-// Filtre
-
+// ===== FILTRE =====
 void mettreAJourFiltreComp() {
 
   float potTanguage = potVersAngle(PIN_POT_ANGLE_TANGAGE);
@@ -155,7 +140,6 @@ void mettreAJourFiltreComp() {
     float gyroTanguage = (gX - offsetGX) / 131.0f;
     float gyroLacet    = (gZ - offsetGZ) / 131.0f;
 
-    //  angle accel 
     float accelTanguage = atan2((float)aY, (float)aZ) * 180.0f / PI;
     accelTanguage -= offsetAnglePitch;
 
@@ -174,12 +158,13 @@ void mettreAJourFiltreComp() {
     + (1.0f - ALPHA_POT) * potLacet;
 
   } else {
-    // Mode sans gyro
     angleTanguage = 0.8f * angleTanguage + 0.2f * potTanguage;
     angleLacet    = 0.8f * angleLacet    + 0.2f * potLacet;
   }
 }
 
+
+// ===== GETTERS =====
 float lireAngleTangage() {
   return angleTanguage;
 }

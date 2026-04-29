@@ -12,6 +12,11 @@
 #define COMMANDE_MIN     0.0f    // commande minimale (correspond à PWM_MIN)
 #define COMMANDE_MAX     100.0f  // commande maximale (correspond à PWM_MAX)
 
+//  WATCHDOG securite
+// Si aucune commande envoyee depuis WATCHDOG_MS → arret 
+
+#define WATCHDOG_MS           300    // 3xTE = 300ms sans commande → coupure
+
 //  PINS MOTEURS
 
 #define PIN_MOTEUR_PRINCIPAL  9
@@ -19,23 +24,21 @@
 
 //  PINS POTENTIOMÈTRES
 
-#define PIN_POT_ANGLE_TANGAGE A0   // retour mécanique axe tanguage
-#define PIN_POT_ANGLE_LACET   A1   // retour mécanique axe lacet
-#define PIN_POT_REDONDANCE    A2   // consigne de secours (sans manette RF)
-#define PIN_POT_GAIN          A3   // pot unique réglage Kp / Ki / Kd
+#define PIN_POT_ANGLE_TANGAGE A3   // retour mécanique axe tanguage
+#define PIN_POT_ANGLE_LACET   A2   // retour mécanique axe lacet
+#define PIN_POT_REDONDANCE    A1   // consigne de secours (sans manette RF)
+#define PIN_POT_GAIN          A0   // pot unique réglage Kp / Ki / Kd
 
 //  BOUTON SÉLECTION GAIN
-#define PIN_BTN_GAIN          2    // pull-up interne
+#define PIN_BTN_GAIN          6    // pull-up interne
 
 //  PINS LEDs
-
-#define PIN_LED_SATURATION    3    // rouge  — commande saturée
-#define PIN_LED_MODE          4    // jaune  — mode analogique actif
-#define PIN_LED_RF            5    // bleu   — RF active    
-#define PIN_LED_KP            6    // vert   — on règle Kp
-#define PIN_LED_KI            7    // vert   — on règle Ki
-#define PIN_LED_KD            8    // vert   — on règle Kd
-
+#define PIN_LED_SATURATION    2    // rouge  — commande saturée  
+#define PIN_LED_KP            3   // vert   — on règle Kp
+#define PIN_LED_KI            4   // vert   — on règle Ki
+#define PIN_LED_KD            5    // vert   — on règle Kd
+#define PIN_LED_MODE          8    // jaune  — mode analogique actif
+#define PIN_LED_RF            7
 //  SIGNAL ESC (PWM en µs)
 
 #define PWM_MIN               1000   // moteur à l'arrêt

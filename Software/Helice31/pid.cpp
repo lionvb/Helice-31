@@ -1,7 +1,7 @@
 #include "pid.h"
 #include <Arduino.h>
  
-float erreur,Un,Up,Ui,Ud ;
+
 
 void resetPID(EtatPID* pid) {
     pid->erreur_prec = 0.0f;
@@ -12,6 +12,7 @@ void resetPID(EtatPID* pid) {
 
 
 float calculPID(float consigne, float mesure,float kp, float ki, float kd,EtatPID* pid){
+    float erreur,Un,Up,Ui,Ud ;
     erreur=consigne-mesure; 
     Up=kp*erreur;   //Calcul Up
     Ui=pid->integrale_prec+((ki*TE)/2)*(erreur-pid->erreur_prec);     //Calcul Ui

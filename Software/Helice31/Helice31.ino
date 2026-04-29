@@ -12,6 +12,10 @@ EtatPID pidLacet;
 //Flag levé par l'ISR du Timer2 
 volatile bool flag_echantillon = false;
 
+// Watchdog : timestamp de la dernière commande envoyée
+// Si trop longtemps sans commande → arretUrgence()
+unsigned long derniere_commande_ms = 0;
+
 // ISR Timer12
 ISR(TIMER2_COMPA_vect) {
     flag_echantillon = true;
@@ -71,6 +75,15 @@ void loop() {
     majSelectionGain();
     majLedsGain(gainActuel());
 
+    // ── Watchdog sécurité ────────────────────────────────────
+    // Si le flag ne se lève plus (timer mort, bug, crash),
+    // on coupe les moteurs après WATCHDOG_MS millisecondes
+    /*if ((millis() - derniere_commande_ms) > WATCHDOG_MS) {
+        //arretUrgence();
+        digitalWrite(PIN_LED_SATURATION, HIGH);  // LED rouge clignotante en urgence
+        return;
+    }*/
+
     //Attendre le tick timer
     if (!flag_echantillon) return;
     flag_echantillon = false;
@@ -89,7 +102,6 @@ void loop() {
     } else {
         consigne = lireConsigneRedondance();
     }
-    digitalWrite(PIN_LED_RF, rfOk ? HIGH : LOW);
 
     //3. Lecture gains (pot unique → gain sélectionné)
     float kp, ki, kd;
@@ -100,7 +112,7 @@ void loop() {
 
     //5. Correcteur PID axe lacet (consigne = 0° : maintenir le cap)
     float cmdLacet = calculPID(0.0f, angleLacet,kp * 0.5f, ki * 0.3f, kd * 0.5f, &pidLacet);
-
+    majLeds(estEnSaturation());
     //6. Envoi commandes moteurs 
     setMoteurPrincipal(cmdPrincipale);
     setRotorQueue(VITESSE_BASE_QUEUE, cmdLacet);
@@ -112,8 +124,8 @@ void loop() {
     Serial.print(" ref=");  Serial.print(consigne, 1);
     Serial.print(" tan=");  Serial.print(angleTangage, 1);
     Serial.print(" lac=");  Serial.print(angleLacet, 1);
-    Serial.print(" u1=");   Serial.print(cmdPrincipale, 1);
-    Serial.print(" u2=");   Serial.print(cmdLacet, 1);
+    Serial.print(" u1= ");   Serial.print(cmdPrincipale, 1);
+    Serial.print(" u2= ");   Serial.print(cmdLacet, 1);
     Serial.print(" Kp=");   Serial.print(kp, 2);
     Serial.print(" Ki=");   Serial.print(ki, 2);
     Serial.print(" Kd=");   Serial.println(kd, 2);

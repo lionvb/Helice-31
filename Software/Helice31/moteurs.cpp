@@ -47,9 +47,11 @@ void initMoteurs() {
  
 void setMoteurPrincipal(float commande) {
     // Détecter la saturation avant de contraindre
+    if (commande < 0.0f) commande = 0.0f;
     saturation = (commande >= COMMANDE_MAX || commande <= COMMANDE_MIN);
     commande   = constrain(commande, COMMANDE_MIN, COMMANDE_MAX);
     escPrincipal.writeMicroseconds(commandeVersPWM(commande));
+    Serial.print(" stauration");   Serial.println(saturation);
 }
  
 void setRotorQueue(float vitesse_base, float delta) {
@@ -60,6 +62,8 @@ void setRotorQueue(float vitesse_base, float delta) {
     //   delta > 0 → augmente la vitesse → tourne dans l'autre sens (surcompense)
     //   delta < 0 → diminue la vitesse → tourne moins vite (sous-compense)
     float cmd = constrain(vitesse_base + delta, COMMANDE_MIN, COMMANDE_MAX);
+    if (cmd < 0.0f) cmd = 0.0f;
+    cmd = constrain(cmd, COMMANDE_MIN, COMMANDE_MAX);
     escQueue.writeMicroseconds(commandeVersPWM(cmd));
 }
  

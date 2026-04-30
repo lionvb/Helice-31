@@ -1,9 +1,10 @@
 #include "config.h"
 #include "gyro.h"
+#include "moteurs.h"
 
 // Variables pour notre minuterie non-bloquante
 unsigned long tempsPrecedent = 0;
-const int PERIODE_AFFICHAGE_MS = 250; // 20ms = 50 Hz (rafraîchissement fluide)
+const int PERIODE_AFFICHAGE_MS = 50; // 20ms = 50 Hz (rafraîchissement fluide)
 
 void setup() {
     Serial.begin(115200);
@@ -13,11 +14,14 @@ void setup() {
     
     // Rappel : l'hélicoptère doit être parfaitement immobile ici !
     calibrerGyro(); 
+    initMoteurs();
+
 }
 
 void loop() {
     // 1. Le calcul des angles tourne en permanence à vitesse maximale
     mettreAJourFiltreComp();
+    setMoteurPrincipal(5);
 
     // 2. Minuterie non-bloquante pour l'affichage
     unsigned long tempsActuel = millis();
@@ -31,10 +35,14 @@ void loop() {
         // 3. Formatage "magique" pour le Traceur Série Arduino
         // La syntaxe doit être exactement : "Nom1:Valeur1, Nom2:Valeur2"
         Serial.print("Tangage:");
-        Serial.print(angleTangage);
-        Serial.print(","); // La virgule sépare les différentes courbes
-        
-        Serial.print("Lacet:");
-        Serial.println(angleLacet); // println à la fin pour valider la ligne
+        Serial.println(angleTangage);
+         // println à la fin pour valider la ligne
     }
+    /*if (tempsActuel%10000==0){
+        setMoteurPrincipal(5);
+        delay(2000);
+    }
+    else{
+        setMoteurPrincipal(0);
+    }*/
 }

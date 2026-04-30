@@ -1,0 +1,167 @@
+================================================================
+         H É L I C E - 3 1  —  Documentation du code
+         Simulateur 2 DOF : Tangage / Lacet
+================================================================
+
+PRÉSENTATION DU PROJET
+-----------------------
+Hélice-31 est une maquette d'hélicoptère à 2 degrés de liberté
+(2 DOF) fixée sur un socle. Les deux axes sont :
+
+  - AXE X : Le LACET  (rotation horizontale, comme une toupie)
+  - AXE Y : Le TANGAGE (inclinaison avant/arrière)
+
+Comme il n'y a pas de capteur de position (pas de gyroscope /
+IMU), le code simule mathématiquement la physique de la machine
+en temps réel directement dans l'Arduino.
+
+
+COMMENT ÇA MARCHE ? — LE PRINCIPE GÉNÉRAL
+------------------------------------------
+Le code tourne en boucle en permanence (~50 fois par seconde).
+À chaque cycle, il effectue les étapes suivantes :
+
+  1. Il lit les deux potentiomètres (les "manettes")
+  2. Il traduit leur position en une force de poussée théorique
+  3. Il calcule les forces qui agissent sur la maquette
+  4. Il en déduit l'accélération, puis la vitesse, puis l'angle
+  5. Il affiche le résultat dans le terminal
+
+C'est ce qu'on appelle une intégration numérique par la méthode
+d'Euler : Force → Accélération → Vitesse → Angle.
+
+
+LES ENTRÉES : LES POTENTIOMÈTRES
+---------------------------------
+  Broche A0 → Potentiomètre de l'axe X (Lacet)
+  Broche A1 → Potentiomètre de l'axe Y (Tangage)
+
+Les potentiomètres renvoient une valeur brute entre 0 et 1023.
+La valeur 512 correspond au centre (neutre = pas de force).
+Le code transforme cette valeur en force entre -100 et +100 N·m.
+
+Une "zone morte" de ±20 unités autour du centre (512) est
+appliquée : si le potentiomètre est quasi centré, la force est
+considérée comme nulle. Cela évite que la maquette dérive
+doucement à cause des imprécisions mécaniques des potentiomètres.
+
+
+LE MODÈLE PHYSIQUE
+------------------
+Voici les phénomènes physiques pris en compte dans la simulation :
+
+  [ INERTIE ]
+  La résistance naturelle de la maquette à changer de mouvement.
+  Un bras lourd et long sera difficile à mettre en rotation.
+  Valeur : 1.5 kg·m²  (à calibrer selon la maquette réelle)
+
+  [ FROTTEMENT ]
+  La résistance qui freine progressivement la rotation.
+  Cela représente les frottements sur les axes + la résistance
+  de l'air sur les bras. Sans cela, la maquette tournerait
+  indéfiniment une fois lancée.
+  Valeur : 0.8  (coefficient de frottement visqueux)
+
+  [ FORCE GRAVITE ]
+  Le poids du bras qui tire constamment l'axe Y vers le bas.
+  Si l'on coupe toute poussée, le tangage revient vers le bas.
+  Valeur : 30.0 N·m
+
+  [ COUPLAGE STATIQUE ]
+  Quand on pousse sur l'axe Y (tangage), cela crée une légère
+  torsion sur l'axe X (lacet). Ce facteur représente 20% de
+  transfert de force entre les deux axes.
+  Valeur : 0.20 (= 20%)
+
+  [ EFFET GYROSCOPIQUE ]
+  Les hélices en rotation créent un moment angulaire. Quand
+  l'axe Y bouge rapidement, les hélices résistent et dévient
+  légèrement l'axe X. C'est un couplage dynamique (lié à la
+  vitesse, pas à la force).
+  Valeur : 0.05  (à ajuster expérimentalement entre 0.02-0.10)
+
+
+LES LIMITES PHYSIQUES
+---------------------
+  AXE X — LACET :
+    Pas de butée. L'axe tourne librement à 360°.
+    Une fois à 360°, il repart à 0° (comme une boussole).
+    La valeur est donc toujours entre 0° et 360°.
+
+  AXE Y — TANGAGE :
+    Deux butées physiques inélastiques :
+      - Butée haute : +50°  (l'hélico ne peut pas monter plus)
+      - Butée basse : -50°  (l'hélico ne peut pas descendre plus)
+    Quand une butée est atteinte, l'angle est bloqué ET la
+    vitesse est annulée (choc inélastique, pas de rebond).
+
+
+LE BOUTON DE RESET
+------------------
+  Broche D2 → Bouton de réinitialisation
+
+  Câblage : une extrémité sur D2, l'autre sur GND.
+  Pas de résistance externe nécessaire (résistance interne
+  pull-up activée dans le code).
+
+  Un appui remet instantanément à zéro :
+    - angleX  → 0.0°
+    - angleY  → 0.0°
+    - vitesseX → 0.0
+    - vitesseY → 0.0
+
+  Un anti-rebond de 200ms est appliqué pour éviter les faux
+  déclenchements liés aux rebonds mécaniques du bouton.
+
+
+L'AFFICHAGE TERMINAL
+---------------------
+Le terminal affiche un panneau qui se rafraîchit en temps réel
+(~50 fois par seconde). Il contient :
+
+  - L'angle actuel de chaque axe (en degrés)
+  - Une barre ASCII montrant la position visuelle
+  - La vitesse angulaire (en deg/s)
+  - La force appliquée par les hélices (en N·m)
+  - Un indicateur [!] si une butée de l'axe Y est atteinte
+  - Un message [ RESET ] au moment d'un appui bouton
+
+  NOTE : Pour que l'affichage se rafraîchisse sur place (sans
+  défiler), le terminal doit supporter les codes ANSI.
+  Utiliser : PuTTY, le Serial Monitor de VSCode, ou tout
+  terminal compatible ANSI. Le Serial Monitor basique de
+  l'IDE Arduino peut défiler au lieu de se rafraîchir.
+
+
+PARAMÈTRES DE CALIBRATION
+--------------------------
+Ces valeurs sont à ajuster lors des tests sur la vraie maquette :
+
+  INERTIE          = 1.5    → Trop molle ? Baisser. Trop rigide ? Monter.
+  FROTTEMENT       = 0.8    → Trop glissante ? Monter. Trop freinée ? Baisser.
+  FORCE_GRAVITE    = 30.0   → Ajuster selon le poids réel du bras.
+  FACTEUR_COUPLAGE = 0.20   → Ajuster si l'axe X réagit trop ou pas assez
+                               lors d'une commande sur Y.
+  COEFF_GYRO       = 0.05   → Commencer à 0.05, ajuster expérimentalement.
+  ZONE_MORTE       = 20     → Augmenter si les axes dérivent au repos.
+  DT_MAX           = 0.05   → Ne pas toucher sauf problème de stabilité.
+
+
+LIMITATIONS CONNUES DU MODÈLE
+------------------------------
+  - L'intégration d'Euler accumule des erreurs au fil du temps.
+    La dérive devient perceptible après ~30 à 60 secondes.
+    → Solution à long terme : ajouter un vrai capteur (IMU).
+
+  - Les paramètres physiques (inertie, frottement...) sont des
+    estimations. Ils devront être calibrés sur la maquette réelle.
+
+  - L'effet gyroscopique est approximé de façon linéaire.
+    Dans la réalité, il est non-linéaire et dépend de la vitesse
+    de rotation des hélices, non modélisée ici.
+
+
+================================================================
+  Projet : Hélice-31  |  Plateforme : Arduino
+  Type   : Simulation mathématique en boucle ouverte (2 DOF)
+================================================================
